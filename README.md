@@ -6,7 +6,7 @@ Scene Detective transforms passive video consumption into an active, interactive
 
 [![Watch the Demo](https://img.youtube.com/vi/vPAYl-EVVwk/0.jpg)](https://youtu.be/vPAYl-EVVwk)
 
-> **[🎥 Watch Video Demo](https://youtu.be/vPAYl-EVVwk)**
+> **[🎥 Watch Video Demo](https://youtu.be/vPAYl-EVVwk)** | **[✨ Try Live App](https://ai.studio/apps/drive/1CFY5c_zBfCHhVEHUpJ_6g-MG5fXM5BxD?fullscreenApplet=true)**
 ---
 
 ## 🚀 Features
