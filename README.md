@@ -1,13 +1,12 @@
-# Scene Detective 🕵️‍♂️🎬
+# Scene Detective 
 
 **Turn Passive Viewing into Interactive Discovery : Shop, Identify, and Explore with Multimodal AI**
+
+Scene Detective transforms passive video consumption into an active, interactive experience. By embedding **Google Gemini 2.5 Flash** directly into the video player, it allows viewers to pause and ask deep, context-aware questions about the content—analyzing visuals, audio, and cultural context simultaneously.
 
 [![Watch the Demo](https://img.youtube.com/vi/vPAYl-EVVwk/0.jpg)](https://youtu.be/vPAYl-EVVwk)
 
 > **[🎥 Watch Video Demo](https://youtu.be/vPAYl-EVVwk)**
-
-Scene Detective transforms passive video consumption into an active, interactive experience. By embedding **Google Gemini 2.5 Flash** directly into the video player, it allows viewers to pause and ask deep, context-aware questions about the content—analyzing visuals, audio, and cultural context simultaneously.
-
 ---
 
 ## 🚀 Features
