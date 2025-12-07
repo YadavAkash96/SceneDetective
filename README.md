@@ -1,6 +1,6 @@
 # Scene Detective 🕵️‍♂️🎬
 
-**The "Second Screen" Killer: Interactive Multimodal Video Analysis**
+**Turn Passive Viewing into Interactive Discovery : Shop, Identify, and Explore with Multimodal AI**
 
 [![Watch the Demo](https://img.youtube.com/vi/vPAYl-EVVwk/0.jpg)](https://youtu.be/vPAYl-EVVwk)
 
