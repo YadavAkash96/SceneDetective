@@ -1,0 +1,7 @@
+{
+  "name": "Scene Detective",
+  "description": "Transform your viewing experience. Pause any movie or show to instantly identify cast members, shop for props, and ask deep contextual questions using Gemini's multimodal vision capabilities.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
