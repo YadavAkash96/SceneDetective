@@ -8,6 +8,8 @@ interface VideoPlayerProps {
   isAnalyzing: boolean;
   annotations: BoundingBox[] | null;
   onCloseAnnotations: () => void;
+  onMediaLoaded: (title: string | null) => void;
+  onPlayStateChange?: (isPlaying: boolean) => void;
 }
 
 // Helper to encode Float32Array to WAV
@@ -65,7 +67,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onIdentify, 
   isAnalyzing, 
   annotations,
-  onCloseAnnotations 
+  onCloseAnnotations,
+  onMediaLoaded,
+  onPlayStateChange
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -214,16 +218,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setQuery(""); // Reset query
       setIsQueryDrawerOpen(false);
       onCloseAnnotations(); // Clear old annotations
-      
+      onMediaLoaded(file.name.replace(/\.[^/.]+$/, "")); // Pass clean filename
+
       // Clear audio buffer
       audioBufferRef.current = [];
       
       if (file.type.startsWith('image/')) {
         setMediaType('image');
         setIsPaused(true); 
+        onPlayStateChange?.(false);
       } else {
         setMediaType('video');
         setIsPaused(false);
+        onPlayStateChange?.(true);
       }
     }
   };
@@ -236,19 +243,33 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setQuery("");
     setIsQueryDrawerOpen(false);
     onCloseAnnotations();
+    onMediaLoaded("Tears of Steel (Demo)");
     audioBufferRef.current = [];
     setIsPaused(false);
+    onPlayStateChange?.(true);
+  };
+
+  const handleReset = () => {
+    setMediaSrc(null);
+    setQuery("");
+    setMediaType(null);
+    onCloseAnnotations();
+    setIsQueryDrawerOpen(false);
+    onMediaLoaded(null);
+    onPlayStateChange?.(false);
   };
 
   const handleVideoPause = () => {
     if (!videoRef.current?.seeking) {
       setIsPaused(true);
+      onPlayStateChange?.(false);
       // We assume processor stops via the `if (!paused)` check in loop
     }
   };
 
   const handleVideoPlay = () => {
     setIsPaused(false);
+    onPlayStateChange?.(true);
     onCloseAnnotations();
     setIsQueryDrawerOpen(false);
     // Resume audio context if suspended
@@ -533,8 +554,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-gray-400 group-hover:text-blue-400 mb-4 z-10 transition-colors">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
           </svg>
-          <span className="text-gray-300 group-hover:text-white font-medium z-10">Upload Video or Image</span>
-          <span className="text-gray-500 text-xs mt-2 z-10">MP4, WebM, JPG, PNG</span>
+          <span className="text-gray-300 group-hover:text-white font-medium z-10">Upload Your Clip</span>
+          <span className="text-gray-500 text-xs mt-2 z-10">MP4, WebM (e.g. Netflix Screen Record)</span>
         </div>
 
         <div className="flex items-center gap-4 my-8 w-72">
@@ -553,6 +574,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               alt="Tears of Steel Demo" 
               className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700 brightness-50 group-hover:brightness-75"
             />
+            {/* Fallback bg if image fails */}
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 -z-10"></div>
+            
             <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg border border-white/20">
                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-white ml-0.5">
@@ -568,8 +592,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         <div className="mt-8 bg-blue-900/10 border border-blue-500/20 rounded-xl p-3 max-w-xs text-left">
            <p className="text-xs text-blue-200/80 leading-relaxed">
-             <strong className="text-blue-400 block mb-1">💡 Pro Tip:</strong>
-             Upload a clip from a famous movie (e.g. Marvel, Harry Potter) to test celebrity identification. The demo video uses indie actors.
+             <strong className="text-blue-400 block mb-1">💡 For Best Demo Results:</strong>
+             Use your own screen recording of a famous show (e.g. Stranger Things). The AI knows celebrities much better than demo actors!
            </p>
         </div>
       </div>
@@ -604,7 +628,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         {/* Change Media Button */}
         <button 
-          onClick={() => { setMediaSrc(null); setQuery(""); setMediaType(null); onCloseAnnotations(); setIsQueryDrawerOpen(false); }}
+          onClick={handleReset}
           className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-md transition-all"
           title="Upload different file"
         >
@@ -668,77 +692,74 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-teal-400">
                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
              </svg>
-             Close Annotations
+             <span className="font-semibold tracking-wide">Close Annotations</span>
            </button>
         </div>
       )}
 
-      {/* Pause Menu & Controls */}
-      {(isPaused && !showAnnotations && !isQueryDrawerOpen) && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
-            
-            {/* Play Button (Only for Video) */}
-            {mediaType === 'video' && (
-              <button 
-                onClick={() => videoRef.current?.play()}
-                className="group relative mb-12 transform transition-transform hover:scale-105"
-              >
-                 <div className="absolute inset-0 bg-blue-500 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-                 <div className="relative bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full p-6 text-white shadow-2xl">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12 pl-1">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                 </div>
-              </button>
-            )}
-
-            {/* Action Buttons Row */}
-            <div className="flex flex-wrap justify-center gap-4 px-4 animate-fade-in-up z-50">
-              
-              {/* Identify Characters Button */}
-              <button
-                disabled={isBusy}
-                onClick={handleIdentifyClick}
-                className="flex items-center gap-3 px-6 py-4 bg-gray-900/90 hover:bg-gray-800 text-white rounded-2xl border border-gray-700 hover:border-blue-500/50 shadow-xl transition-all group w-48 justify-center disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                 {isBusy ? (
-                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                 ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-gray-400 group-hover:text-blue-400 animate-pulse">
-                      <path d="M4.5 6.375a4.125 4.125 0 118.25 0 4.125 4.125 0 01-8.25 0zM14.25 8.625a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0zM1.5 19.125a7.125 7.125 0 0114.25 0v.003l-.001.119a.75.75 0 01-.363.63 13.067 13.067 0 01-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 01-.364-.63l-.001-.122zM17.25 19.128l-.001.144a2.25 2.25 0 01-.233.96 10.088 10.088 0 005.06-4.42 6.753 6.753 0 01-4.825 3.316z" />
-                    </svg>
-                 )}
-                 <span className="font-medium">Identify Cast</span>
-              </button>
-
-              {/* Ask AI Button */}
-              <button
-                 disabled={isBusy}
-                 onClick={() => setIsQueryDrawerOpen(true)}
-                 className="flex items-center gap-3 px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl shadow-xl shadow-blue-900/20 transition-all w-48 justify-center disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-blue-100">
-                    <path fillRule="evenodd" d="M10.5 3.75a6.75 6.75 0 100 13.5 6.75 6.75 0 000-13.5zM2.25 10.5a8.25 8.25 0 1114.59 5.28l4.69 4.69a.75.75 0 11-1.06 1.06l-4.69-4.69A8.25 8.25 0 012.25 10.5z" clipRule="evenodd" />
-                  </svg>
-                  <span className="font-bold">Ask AI</span>
-              </button>
-            </div>
+      {/* Play/Pause Overlay - Center Screen */}
+      {isPaused && !isBusy && !showAnnotations && !isQueryDrawerOpen && (
+        <div 
+          className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer group"
+          onClick={() => {
+             if (mediaType === 'video' && videoRef.current) {
+                videoRef.current.play();
+             }
+          }}
+        >
+             <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-white/20 transition-all border border-white/20 shadow-2xl">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12 text-white drop-shadow-lg ml-1">
+                   <path fillRule="evenodd" d="M4.5 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" clipRule="evenodd" />
+                 </svg>
+             </div>
         </div>
       )}
 
-      {/* Query Drawer (Slide from Left) */}
+      {/* Action Buttons - Moved to be just below the center play button */}
+      {isPaused && !isBusy && !showAnnotations && !isQueryDrawerOpen && (
+        <div className="absolute top-1/2 left-0 right-0 mt-20 z-50 flex items-center justify-center gap-6 pointer-events-none">
+            
+            {/* Identify Cast Button */}
+            <button 
+              onClick={handleIdentifyClick}
+              className="pointer-events-auto group bg-gray-900/90 hover:bg-gray-800 text-white px-6 py-4 rounded-2xl border border-white/10 flex items-center gap-3 transition-all hover:scale-105 shadow-xl hover:shadow-teal-500/20"
+            >
+              <div className="p-2 bg-teal-600 rounded-lg group-hover:rotate-12 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                   <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="text-left">
+                 <span className="block text-sm font-bold">Identify Cast</span>
+                 <span className="block text-[10px] text-gray-400">Scan Scene</span>
+              </div>
+            </button>
+
+            {/* Ask AI Button */}
+            <button 
+              onClick={() => setIsQueryDrawerOpen(true)}
+              className="pointer-events-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-blue-600/30 hover:shadow-blue-500/50 transition-all hover:-translate-y-1 flex items-center gap-2"
+            >
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+               </svg>
+               Ask AI
+            </button>
+
+        </div>
+      )}
+
+      {/* Query Drawer (Slide-in Left) */}
       {isQueryDrawerOpen && (
         <div 
-          className="absolute top-0 bottom-0 left-0 z-50 w-[90%] sm:w-[450px] bg-gray-900/90 backdrop-blur-xl border-r border-white/10 shadow-2xl slide-in-left flex flex-col"
+          className="absolute top-0 bottom-0 left-0 w-[90%] sm:w-[400px] z-50 bg-gray-900/95 backdrop-blur-xl border-r border-white/10 shadow-2xl flex flex-col slide-in-left"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-white/10 bg-gray-900/50">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <span className="text-blue-500">?</span> Ask Question
-            </h2>
+            <h2 className="text-lg font-bold text-white">Ask Scene Detective</h2>
             <button 
               onClick={() => setIsQueryDrawerOpen(false)}
               className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
@@ -748,75 +769,53 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </svg>
             </button>
           </div>
-
-          {/* Form Content */}
+          
+          {/* Content */}
           <div className="p-6 flex-1 flex flex-col">
-            <p className="text-gray-400 text-sm mb-4">
-               Ask about the current scene, characters, plot details, or anything visible in the frame.
-            </p>
-            
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <label className="text-xs text-blue-400 uppercase font-bold tracking-widest mb-3 block">
+               Question
+            </label>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4 flex-1">
               <div className="relative">
-                <textarea
+                <textarea 
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="e.g., What is the real name of the actor in the hat?"
-                  className="w-full bg-gray-800 text-white placeholder-gray-500 border border-gray-700 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none"
-                  autoFocus
+                  placeholder="E.g. Where can I buy this jacket? or What song is playing?"
+                  className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-gray-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none text-base"
                 />
-                 {/* Microphone Button */}
-                 <button
-                  type="button"
-                  onClick={startListening}
-                  className={`absolute right-3 bottom-3 p-2 rounded-full transition-all ${
-                    isListening 
-                      ? 'bg-red-500/20 text-red-500 animate-pulse ring-2 ring-red-500/50' 
-                      : 'hover:bg-gray-700 text-gray-400 hover:text-white'
-                  }`}
-                  title="Speak to type"
+                
+                {/* Mic Button */}
+                <button
+                   type="button"
+                   onClick={startListening}
+                   className={`absolute bottom-3 right-3 p-2 rounded-lg transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-white/10 text-gray-400 hover:text-white'}`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                    <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
-                    <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h3v-2.291a6.751 6.751 0 01-6-6.709v-1.5A.75.75 0 016 10.5z" />
-                  </svg>
+                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                   </svg>
                 </button>
               </div>
 
-              <button
+              <div className="flex-1"></div>
+
+              <button 
                 type="submit"
-                disabled={!query.trim() || isBusy}
-                className={`flex items-center justify-center gap-2 py-4 rounded-xl font-bold transition-all mt-2 ${
-                  !query.trim() || isBusy 
-                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' 
-                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20'
-                }`}
+                disabled={!query.trim()}
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-xl shadow-lg shadow-blue-900/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.98]"
               >
-                {isBusy ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Analyzing Scene...
-                  </>
-                ) : (
-                  'Submit Question'
-                )}
+                 <span>Analyze Scene</span>
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                 </svg>
               </button>
             </form>
-            
-            <div className="mt-auto pt-6 border-t border-white/5">
-                <div className="flex items-start gap-3 p-3 bg-blue-500/10 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-400 shrink-0">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-                    </svg>
-                    <p className="text-xs text-blue-200/60">
-                        Swipe left to close this panel.
-                    </p>
-                </div>
-            </div>
           </div>
           
-           {/* Mobile Handle Hint */}
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-16 bg-white/10 rounded-full sm:hidden"></div>
+           {/* Hint */}
+          <div className="p-4 bg-gray-900/50 text-center border-t border-white/5">
+             <p className="text-xs text-gray-500">Swipe left to close</p>
+          </div>
         </div>
       )}
     </div>

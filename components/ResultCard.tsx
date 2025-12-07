@@ -56,6 +56,13 @@ const parseBold = (text: string) => {
   return safeText.replace(/\*\*(.*?)\*\*/g, '<strong class="text-blue-100 font-bold">$1</strong>');
 };
 
+// Helper to extract YouTube ID
+const getYouTubeVideoId = (url: string): string | null => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
 const RecommendationTile: React.FC<{ source: any }> = ({ source }) => {
   const [meta, setMeta] = useState<{ 
     image?: string; 
@@ -66,7 +73,20 @@ const RecommendationTile: React.FC<{ source: any }> = ({ source }) => {
   const [loading, setLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
 
+  const youtubeId = getYouTubeVideoId(source.uri);
+
   useEffect(() => {
+    // If it's YouTube, we don't need to fetch metadata, we construct it.
+    if (youtubeId) {
+      setMeta({
+        image: `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`,
+        title: source.title || "Watch on YouTube",
+        publisher: "YouTube",
+      });
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
     const fetchMetadata = async () => {
       try {
@@ -92,17 +112,21 @@ const RecommendationTile: React.FC<{ source: any }> = ({ source }) => {
 
     fetchMetadata();
     return () => { isMounted = false; };
-  }, [source.uri]);
+  }, [source.uri, youtubeId]);
 
   // Fallback Logic
-  const displayTitle = meta.title || source.title || "Product Link";
+  const displayTitle = meta.title || source.title || "Link";
   const displayPublisher = meta.publisher || (source.uri ? new URL(source.uri).hostname.replace('www.', '') : "Web");
   
   // Strategy: 
-  // 1. Try OG Image (Best)
-  // 2. Try Screenshot Service (Context)
-  // 3. Fallback to Brand Logo (Clean)
-  const displayImage = meta.image || `https://image.thum.io/get/width/400/crop/600/noanimate/${source.uri}`;
+  // 1. YouTube Thumbnail (Immediate)
+  // 2. Try OG Image (Best for products)
+  // 3. Try Screenshot Service (Context)
+  // 4. Fallback to Brand Logo (Clean)
+  let displayImage = meta.image;
+  if (!displayImage && !youtubeId) {
+     displayImage = `https://image.thum.io/get/width/400/crop/600/noanimate/${source.uri}`;
+  }
 
   return (
     <a 
@@ -118,9 +142,20 @@ const RecommendationTile: React.FC<{ source: any }> = ({ source }) => {
                     <img 
                         src={displayImage} 
                         alt={displayTitle} 
-                        className={`w-full h-full ${meta.image ? 'object-cover' : 'object-cover object-top'} group-hover:scale-105 transition-transform duration-700`}
+                        className={`w-full h-full ${youtubeId ? 'object-cover' : (meta.image ? 'object-cover' : 'object-cover object-top')} group-hover:scale-105 transition-transform duration-700`}
                         onError={() => setImgError(true)}
                     />
+                    
+                    {/* YouTube Play Overlay */}
+                    {youtubeId && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors">
+                           <div className="w-10 h-8 bg-red-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white">
+                                 <path fillRule="evenodd" d="M4.5 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" clipRule="evenodd" />
+                              </svg>
+                           </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 // BRAND CARD FALLBACK
@@ -151,7 +186,7 @@ const RecommendationTile: React.FC<{ source: any }> = ({ source }) => {
             )}
             
             {/* Corner Logo Overlay (Only show if we have a main image, otherwise the Brand Card IS the logo) */}
-            {(!imgError && !loading) && (
+            {(!imgError && !loading && !youtubeId) && (
              <div className="absolute top-2 right-2 bg-white/90 p-0.5 rounded-full z-10 shadow-sm">
                 <img 
                   src={`https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(source.uri)}&size=32`} 
@@ -165,7 +200,7 @@ const RecommendationTile: React.FC<{ source: any }> = ({ source }) => {
 
         {/* Text Section */}
         <div className="p-3 flex-1 flex flex-col justify-between border-t border-white/5 bg-gray-900/90">
-             <p className="text-[10px] text-blue-400 font-mono uppercase tracking-wider truncate mb-1">
+             <p className={`text-[10px] font-mono uppercase tracking-wider truncate mb-1 ${youtubeId ? 'text-red-400 font-bold' : 'text-blue-400'}`}>
                 {displayPublisher}
             </p>
             <p className="text-xs font-medium text-gray-200 leading-snug line-clamp-2 group-hover:text-blue-100 transition-colors">
